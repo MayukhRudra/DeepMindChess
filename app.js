@@ -24,7 +24,8 @@ app.use(cors(corsOptions));
 const server = http.createServer(app);
 const io = socket(server, {
     cors: {
-        origin: allowedOrigins.length ? allowedOrigins : "*",
+        // Reflect request origin when no ALLOWED_ORIGINS provided (supports credentials)
+        origin: allowedOrigins.length ? allowedOrigins : true,
         methods: ["GET", "POST"],
         credentials: true
     }
