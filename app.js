@@ -5,11 +5,30 @@ const { Chess } = require("chess.js");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const axios = require("axios");
+const cors = require("cors");
 
 const app = express();
 
+// CORS for online hosting
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
+const corsOptions = {
+    origin: allowedOrigins.length ? allowedOrigins : "*",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 const server = http.createServer(app);
-const io = socket(server);
+const io = socket(server, {
+    cors: {
+        origin: allowedOrigins.length ? allowedOrigins : "*",
+        methods: ["GET", "POST"],
+        credentials: true
+    }
+});
 
 const chess = new Chess();
 let players = {};
