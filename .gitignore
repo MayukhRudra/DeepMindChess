@@ -240,10 +240,44 @@ ENV/
 env.bak/
 venv.bak/
 
-# VS Code settings
-.vscode/
+# =========================
+# VS Code related ignores
+# =========================
 
-# macOS and system files
+# VS Code local settings, extensions, and workspace files
+.vscode/
+.history/
+*.code-workspace
+.vscode-test/
+
+# VS Code project-specific data (launch configs, user snippets, etc.)
+.vscode/*.db
+.vscode/*.cache
+.vscode/*.log
+
+# =========================
+# OS / Editor junk files
+# =========================
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# Temporary files
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+*.save
 
