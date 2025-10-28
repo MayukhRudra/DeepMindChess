@@ -12,15 +12,14 @@ const app = express();
 // CORS for online hosting
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
 const corsOptions = {
-    origin: allowedOrigins.length ? allowedOrigins : "*",
+    // If ALLOWED_ORIGINS provided, use it; else reflect request origin (supports credentials)
+    origin: allowedOrigins.length ? allowedOrigins : true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
-// Express 5 + path-to-regexp v8 does not accept "*" as a path; use a catch-all regex
-app.options('/(.*)', cors(corsOptions));
 
 const server = http.createServer(app);
 const io = socket(server, {
