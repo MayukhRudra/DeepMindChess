@@ -265,6 +265,7 @@ venv.bak/
 .LSOverride
 
 # Windows
+dist-gui
 Thumbs.db
 ehthumbs.db
 Desktop.ini
@@ -280,4 +281,5 @@ $RECYCLE.BIN/
 *.bak
 *.orig
 *.save
+
 

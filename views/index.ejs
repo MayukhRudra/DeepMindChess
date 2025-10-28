@@ -170,8 +170,9 @@
         const mode = urlParams.get("mode");
         const gameId = "<%= typeof gameId !== 'undefined' ? gameId : '' %>";
         if (mode === "friends" && gameId) {
-            document.getElementById("room-url").innerText =
-               `${window.location.origin}/game/${gameId}?mode=friends`;
+            const injectedBase = "<%= typeof baseUrl !== 'undefined' ? baseUrl : '' %>";
+            const origin = injectedBase && injectedBase.length ? injectedBase : window.location.origin;
+            document.getElementById("room-url").innerText = `${origin}/game/${gameId}?mode=friends`;
         }
     </script>
     

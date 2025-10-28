@@ -4,10 +4,23 @@ const http = require("http");
 const { Chess } = require("chess.js");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
-const axios = require("axios");
 const cors = require("cors");
+const { exec } = require('child_process');
+const os = require('os');
 
 const app = express();
+
+// Determine LAN base URL to share with friends on the same network
+let BASE_URL = null;
+function getLanAddress() {
+    const nets = os.networkInterfaces();
+    for (const name of Object.keys(nets)) {
+        for (const net of nets[name] || []) {
+            if (net.family === 'IPv4' && !net.internal) return net.address;
+        }
+    }
+    return '127.0.0.1';
+}
 
 // CORS for online hosting
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
@@ -242,15 +255,20 @@ async function makeBotMove(roomId = null, socketId = null) {
         const fen = gameChess.fen();
         console.log('🤖 Bot thinking...');
         
-        // Try Lichess API with shorter timeout
-        const response = await axios.get('https://lichess.org/api/cloud-eval', {
-            params: { fen: fen, multiPv: 1 },
+        // Try Lichess API with shorter timeout (using native fetch)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const url = 'https://lichess.org/api/cloud-eval?' + new URLSearchParams({ fen: fen, multiPv: '1' }).toString();
+        const response = await fetch(url, {
             headers: { 'Accept': 'application/json' },
-            timeout: 2000 // Reduced to 2 seconds
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
         
-        if (response.data && response.data.pvs && response.data.pvs[0]) {
-            const bestMoveUCI = response.data.pvs[0].moves.split(' ')[0];
+        if (data && data.pvs && data.pvs[0]) {
+            const bestMoveUCI = data.pvs[0].moves.split(' ')[0];
             const from = bestMoveUCI.substring(0, 2);
             const to = bestMoveUCI.substring(2, 4);
             const promotion = bestMoveUCI.length > 4 ? bestMoveUCI[4] : undefined;
@@ -370,7 +388,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true}));
 
 app.get("/", (req, res) => {
-    res.render("login");
+    res.render("login", { baseUrl: BASE_URL });
 });
 
 app.post("/start", (req, res) => {
@@ -395,13 +413,13 @@ app.post("/start", (req, res) => {
     Object.keys(disconnectTimers).forEach((k) => { clearInterval(disconnectTimers[k]); });
     disconnectTimers = {};
 
-    return res.render("index", { username, mode, botDifficulty: difficulty || 'medium' });
+return res.render("index", { username, mode, botDifficulty: difficulty || 'medium', baseUrl: BASE_URL });
 });
 
 app.get("/game/:gameId", (req, res) => {
     const { username, mode } = req.query;
     const { gameId } = req.params;
-    res.render("index", { username, mode, gameId, botDifficulty: 'medium' });
+res.render("index", { username, mode, gameId, botDifficulty: 'medium', baseUrl: BASE_URL });
 });
 
 function sendPlayersUpdate() {
@@ -964,8 +982,52 @@ io.on("connection", function(uniquesocket){
     });
 });
 
-server.listen(3000, function () {
-    console.log(`✅ Server running at http://localhost:3000/`);
-    console.log(`🤖 Using Smart AI Bot with Minimax Algorithm`);
-    console.log(`🎯 Bot difficulty levels: Easy, Medium, Hard, Expert`);
-});
+const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 3000;
+let triedRandom = false;
+
+function openBrowser(url) {
+    try {
+        if (process.platform === 'win32') exec(`start "" "${url}"`);
+        else if (process.platform === 'darwin') exec(`open "${url}"`);
+        else exec(`xdg-open "${url}"`);
+    } catch {}
+}
+
+function startServer(port) {
+    return new Promise((resolve, reject) => {
+        const onError = (err) => {
+            if (err && err.code === 'EADDRINUSE' && !triedRandom) {
+                console.warn(`⚠️ Port ${port} in use, retrying on a random port...`);
+                triedRandom = true;
+                // Try again on random port; resolve when inner succeeds
+                startServer(0).then(resolve).catch(reject);
+            } else {
+                console.error('Server failed to start:', err);
+                // Prevent instant window close on error when double-clicking the .exe
+                setTimeout(() => {}, 10000);
+                reject(err);
+            }
+        };
+
+        const host = process.env.HOST || '0.0.0.0';
+        server.listen(port, host, function () {
+            const actualPort = server.address().port;
+            const localUrl = `http://localhost:${actualPort}/`;
+            const lanIp = getLanAddress();
+            BASE_URL = `http://${lanIp}:${actualPort}`;
+            console.log(`✅ Server running:`);
+            console.log(`   Local:   ${localUrl}`);
+            console.log(`   Network: ${BASE_URL}`);
+            console.log(`🤖 Using Smart AI Bot with Minimax Algorithm`);
+            console.log(`🎯 Bot difficulty levels: Easy, Medium, Hard, Expert`);
+            if (process.env.AUTO_OPEN !== 'false') openBrowser(localUrl);
+            resolve({ port: actualPort, url: localUrl, lanUrl: BASE_URL });
+        }).on('error', onError);
+    });
+}
+
+if (require.main === module) {
+    startServer(DEFAULT_PORT).catch(() => process.exit(1));
+}
+
+module.exports = { startServer };

@@ -2,11 +2,54 @@
   "name": "chess-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "electron.js",
+  "bin": "app.js",
   "scripts": {
     "start": "node app.js",
     "dev": "node app.js",
+    "start:gui": "cross-env AUTO_OPEN=false electron .",
+    "build:exe": "pkg . --targets node18-win-x64 --out-path dist",
+    "build:win": "cross-env AUTO_OPEN=false CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_DISABLE_APPX=true electron-builder --win portable --x64",
+    "build:win:packager": "cross-env AUTO_OPEN=false electron-packager . \"Chess Bot\" --out=dist-gui --overwrite --platform=win32 --arch=x64 --prune=true",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "pkg": {
+    "assets": [
+      "public/**/*",
+      "views/**/*"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist"
+  },
+  "build": {
+    "appId": "com.example.chessbot",
+    "productName": "Chess Bot",
+    "directories": {
+      "output": "dist-gui"
+    },
+    "files": [
+      "app.js",
+      "electron.js",
+      "public/**/*",
+      "views/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "extraMetadata": {
+      "main": "electron.js"
+    }
   },
   "keywords": [],
   "author": "",
@@ -19,5 +62,11 @@
     "express": "^5.1.0",
     "socket.io": "^4.8.1",
     "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "electron-packager": "^17.1.2"
   }
 }
