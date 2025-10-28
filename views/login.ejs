@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-zinc-900 text-white flex items-center justify-center h-screen">
+  <div class="bg-zinc-800 p-8 rounded-2xl shadow-lg w-96">
+    <h1 class="text-2xl font-bold mb-6 text-center">Login to Play Chess</h1>
+    
+    <form action="/start" method="POST" class="space-y-4">
+      <!-- Username -->
+      <div>
+        <label class="block mb-1 font-semibold">Your Name</label>
+        <input id="loginName" type="text" name="username" required class="w-full p-2 rounded bg-zinc-700 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      </div>
+
+      <!-- Mode Selection -->
+      <div>
+        <label class="block mb-1 font-semibold">Choose Mode</label>
+        <select id="modeSelect" name="mode" required class="w-full p-2 rounded bg-zinc-700 border border-zinc-600">
+          <option value="bot">Human vs Bot</option>
+          <option value="self">Self</option>
+          <option value="friends">With Friends</option>
+        </select>
+      </div>
+
+      <!-- Bot Difficulty (only shown when bot mode is selected) -->
+      <div id="botDifficultySection" class="space-y-2">
+        <label class="block mb-1 font-semibold">Bot Difficulty</label>
+        <select name="botDifficulty" class="w-full p-2 rounded bg-zinc-700 border border-zinc-600">
+          <option value="easy">Easy (Beginner)</option>
+          <option value="medium" selected>Medium (Intermediate)</option>
+          <option value="hard">Hard (Advanced)</option>
+          <option value="expert">Expert (Grandmaster)</option>
+        </select>
+        <p class="text-sm text-zinc-400 mt-1">
+          <span id="difficultyDesc">Balanced gameplay for most players</span>
+        </p>
+      </div>
+
+      <!-- Submit -->
+      <div class="text-center">
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded-lg font-semibold">
+          Start Game
+        </button>
+      </div>
+    </form>
+  </div>
+  
+  <script>
+    try {
+      const saved = localStorage.getItem('chess_username');
+      if (saved && saved.trim().length > 0) {
+        const input = document.getElementById('loginName');
+        if (input) input.value = saved;
+      }
+    } catch {}
+
+    // Show/hide bot difficulty based on mode
+    const modeSelect = document.getElementById('modeSelect');
+    const botDifficultySection = document.getElementById('botDifficultySection');
+    const difficultySelect = document.querySelector('select[name="botDifficulty"]');
+    const difficultyDesc = document.getElementById('difficultyDesc');
+
+    const descriptions = {
+      easy: 'Makes mistakes, good for beginners learning chess',
+      medium: 'Balanced gameplay for most players',
+      hard: 'Challenging opponent with strong tactics',
+      expert: 'Grandmaster level - extremely difficult'
+    };
+
+    function updateDifficultyVisibility() {
+      if (modeSelect.value === 'bot') {
+        botDifficultySection.style.display = 'block';
+      } else {
+        botDifficultySection.style.display = 'none';
+      }
+    }
+
+    modeSelect.addEventListener('change', updateDifficultyVisibility);
+    
+    difficultySelect.addEventListener('change', () => {
+      difficultyDesc.textContent = descriptions[difficultySelect.value];
+    });
+
+    updateDifficultyVisibility();
+  </script>
+</body>
+</html>

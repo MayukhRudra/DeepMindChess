@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Choose Game Mode</title>
+  <style>
+    body { display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .mode-box { text-align: center; }
+    button { display: block; margin: 10px; padding: 15px; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <div class="mode-box">
+    <h2>Welcome <%= username %>!</h2>
+    <p>Select Game Mode:</p>
+    <form action="/chess" method="get">
+      <input type="hidden" name="username" value="<%= username %>"/>
+      <button type="submit" name="mode" value="online">1. Play Online</button>
+      <button type="submit" name="mode" value="bot">2. Human vs Bot</button>
+      <button type="submit" name="mode" value="self">3. Self Play</button>
+      <button type="submit" name="mode" value="friends">4. With Friends</button>
+    </form>
+  </div>
+  <div id="shareLinkBox">
+  <p>Share this link with your friend to join:</p>
+  <p id="room-url"></p>
+</div>
+
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const mode = urlParams.get("mode");
+  const gameId = "<%= gameId %>";  // passed from server
+
+  if (mode === "friends" && gameId) {
+      document.getElementById("room-url").innerText =
+        `${window.location.origin}/game/${gameId}?mode=friends`;
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        
+        .chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, minmax(0, 1fr));
+            grid-template-rows: repeat(8, minmax(0, 1fr));
+            width: 500px;
+            height: 500px;
+            border: 3px solid black;
+            margin: auto;
+            transform: rotate(0deg);
+            position: relative;
+        }
+
+        .piece.white {
+            color: white;
+            filter: drop-shadow(0 0 2px rgba(0, 0, 0, 1));
+        }
+
+        .piece.black {
+            color: black;
+        }
+
+        .square {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3vw;
+            cursor: pointer;
+        }
+
+        .square.light {
+            background-color: #f0d9b5;
+        }
+
+        .square.dark {
+            background-color: #b58863;
+        }
+
+        /* move hints */
+        .hint {
+            box-shadow: inset 0 0 0 6px rgba(0, 255, 0, 0.35);
+        }
+        .hint-capture {
+            box-shadow: inset 0 0 0 6px rgba(255, 0, 0, 0.4);
+        }
+        /* king in check */
+        .square.in-check {
+            box-shadow: inset 0 0 0 6px rgba(255, 0, 0, 0.75), 0 0 12px rgba(255, 0, 0, 0.6);
+        }
+
+        .piece {
+            font-family: "DejaVu Sans", "Segoe UI Symbol", "Noto Sans Symbols", sans-serif;
+            font-size: 56px;
+            user-select: none;
+        }
+
+
+        .piece.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .dragging {
+            opacity: 0.5;
+        }
+
+        .square.drag-over {
+            outline: 2px dashed yellow;
+        }
+        
+        /* Add this CSS to your existing <style> section in index.ejs */
+
+        .game-result {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) !important; /* Override any rotation */
+            background: rgba(0,0,0,0.9);
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            padding: 20px 40px;
+            border-radius: 12px;
+            display: none;
+            z-index: 10;
+            text-align: center;
+            /* IMPORTANT: Prevent text from being rotated with board */
+            /* transform-origin: center; */
+        }
+
+            /* CRITICAL FIX: Game over overlay must never rotate */
+        .game-over-wrapper,
+        .game-over-overlay {
+            position: fixed !important;
+            transform: none !important;
+            direction: ltr !important;
+            writing-mode: horizontal-tb !important;
+            animation: none !important;
+            z-index: 999999 !important;
+        }
+
+        .game-over-wrapper *,
+        .game-over-overlay * {
+            transform: none !important;
+        }
+
+        /* Make sure flipped only affects the chessboard itself */
+        .chessboard.flipped {
+            transform: rotate(180deg);
+        }
+
+        .chessboard.flipped .piece {
+            transform: rotate(180deg);
+        }
+    /* 
+        .game-result.flipped {
+            transform: rotate(180deg);
+        } */
+
+        /* Remove any existing .flipped that might affect body */
+        body.flipped {
+            transform: none !important;
+        }
+    </style>
+</head>
+<body>
+    <% if (mode === 'bot') { %>
+    <div id="header" style="text-align: center; margin: 10px; font-size: 20px; font-weight: bold;">
+        You: <span id="youName"><%= typeof username !== 'undefined' ? username : '' %></span>
+    </div>
+    <% } %>
+
+<!-- Hidden field so JS can send your name to the server -->
+    <input type="hidden" id="username" value="<%= username %>">
+    <input type="hidden" id="mode" value="<%= mode %>">
+    <!-- Add this right after the mode hidden input in index.ejs -->
+    <input type="hidden" id="botDifficulty" value="<%= typeof botDifficulty !== 'undefined' ? botDifficulty : 'medium' %>">
+
+    <!-- Also add this display at the top if in bot mode -->
+    <% if (mode === 'bot') { %>
+    <div id="botDifficultyDisplay" style="text-align: center; margin: 10px; font-size: 16px; color: #fbbf24; font-weight: bold;">
+        Playing against: 
+        <span style="text-transform: capitalize;"><%= typeof botDifficulty !== 'undefined' ? botDifficulty : 'Medium' %></span> Bot
+    </div>
+    <% } %>
+    <input type="hidden" id="gameId" value="<%= typeof gameId !== 'undefined' ? gameId : '' %>">
+    <% if (mode !== 'self') { %>
+    <div id="shareLinkBox">
+        Share this link with your friend: <span id="room-url"></span>
+    </div>
+    <% } %>
+<!-- Players panel hidden in self mode -->
+    <% if (mode !== 'self' && mode !== 'friends') { %>
+    <div id="playersStatus" style="text-align:center;margin:8px 0 16px;font-size:18px;font-weight:600;">
+        Waiting for players...
+    </div>
+    <% } %>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get("mode");
+        const gameId = "<%= typeof gameId !== 'undefined' ? gameId : '' %>";
+        if (mode === "friends" && gameId) {
+            document.getElementById("room-url").innerText =
+               `${window.location.origin}/game/${gameId}?mode=friends`;
+        }
+    </script>
+    
+    <div id="board"></div>
+    <div class="w-full h-screen flex flex-col items-center justify-center bg-zinc-900">
+        <!-- Friends: top/bottom board name labels like chess.com -->
+        <% if (mode === 'friends') { %>
+        <div id="blackNameTop" style="color:#fff;font-weight:800;margin-bottom:6px;text-align:center;">-</div>
+
+        <% } %>
+        <div id="disconnectTimer" style="color:#fff; font-weight:700; margin-bottom:12px; display:none;"></div>
+        <div class="chessboard"></div>
+        <% if (mode === 'friends') { %>
+        <div id="whiteNameBottom" style="color:#fff;font-weight:800;margin-top:6px;text-align:center;">-</div>
+
+        <% } %>
+    </div>
+    <!-- Promotion chooser -->
+    <div id="promotionOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);"></div>
+    <div id="promotionModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1f2937; color:#fff; padding:16px 20px; border-radius:12px; text-align:center;">
+        <div style="font-weight:700; margin-bottom:10px;">Choose promotion</div>
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button class="promote-btn" data-piece="q" style="padding:8px 12px; background:#4b5563; border-radius:8px;">Queen</button>
+            <button class="promote-btn" data-piece="r" style="padding:8px 12px; background:#4b5563; border-radius:8px;">Rook</button>
+            <button class="promote-btn" data-piece="b" style="padding:8px 12px; background:#4b5563; border-radius:8px;">Bishop</button>
+            <button class="promote-btn" data-piece="n" style="padding:8px 12px; background:#4b5563; border-radius:8px;">Knight</button>
+        </div>
+    </div>
+
+    <!-- Quit button -->
+    <div style="position:fixed; top:12px; right:12px;">
+        <button id="quitBtn" style="background:#ef4444; color:#fff; padding:8px 12px; border-radius:8px; font-weight:700;">Quit</button>
+    </div>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js" integrity="sha512-xRllwz2gdZciIB+AkEbeq+gVhX8VB8XsfqeFbUh+SzHlN96dEduwtTuVuc2u9EROlmW9+yhRlxjif66ORpsgVA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="/chessgame.js"></script>
+</body>
+</html>
