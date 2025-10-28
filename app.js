@@ -19,7 +19,8 @@ const corsOptions = {
     optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+// Express 5 + path-to-regexp v8 does not accept "*" as a path; use a catch-all regex
+app.options('/(.*)', cors(corsOptions));
 
 const server = http.createServer(app);
 const io = socket(server, {
